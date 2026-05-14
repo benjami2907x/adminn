@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wydnova — Panel Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Permanent+Marker&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<style>
+:root{
+  --yellow:#f5c842;--cyan:#00e5ff;--purple:#a855f7;--indigo:#6366f1;
+  --surface:rgba(8,26,12,0.92);--border:rgba(245,200,66,0.22);--border-p:rgba(168,85,247,0.3);
+  --red:#ff4444;--green:#4ade80;--orange:#f97316;
+  --text:#e8f5eb;--muted:#6fa878;--radius:12px;--bg:#060f08;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{
+  font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);
+  min-height:100vh;
+  background-image:
+    repeating-linear-gradient(90deg,rgba(255,255,255,0.01) 0,rgba(255,255,255,0.01) 1px,transparent 1px,transparent 55px),
+    repeating-linear-gradient(0deg,rgba(255,255,255,0.01) 0,rgba(255,255,255,0.01) 1px,transparent 1px,transparent 55px),
+    radial-gradient(ellipse at 5% 5%,rgba(168,85,247,0.06) 0%,transparent 45%),
+    radial-gradient(ellipse at 95% 95%,rgba(0,229,255,0.05) 0%,transparent 45%);
+  overflow-x:hidden;
+}
+
+/* LAYOUT */
+.admin-layout{display:flex;height:100vh;overflow:hidden;}
+.admin-sidebar{
+  width:240px;flex-shrink:0;
+  background:linear-gradient(180deg,rgba(8,18,10,0.99),rgba(6,14,8,0.98));
+  border-right:1px solid var(--border-p);
+  display:flex;flex-direction:column;overflow-y:auto;
+}
+.admin-main{flex:1;overflow-y:auto;display:flex;flex-direction:column;}
+
+/* SIDEBAR */
+.sb-logo{padding:20px 18px 14px;border-bottom:1px solid rgba(168,85,247,0.15);}
+.sb-brand{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:4px;
+  background:linear-gradient(90deg,var(--purple),var(--indigo));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.sb-sub{font-size:9px;color:var(--muted);letter-spacing:1px;margin-top:1px;}
+.sb-badge{display:inline-block;background:rgba(168,85,247,0.15);border:1px solid rgba(168,85,247,0.35);
+  color:var(--purple);border-radius:6px;font-size:9px;font-weight:700;padding:1px 7px;letter-spacing:1px;margin-top:5px;}
+
+.sb-nav{flex:1;padding:14px 10px;}
+.sb-section{font-size:9px;color:var(--muted);letter-spacing:2px;font-weight:700;text-transform:uppercase;
+  padding:4px 8px;margin-bottom:4px;margin-top:12px;}
+.sb-section:first-child{margin-top:0;}
+.sb-item{
+  display:flex;align-items:center;gap:9px;
+  padding:9px 10px;border-radius:8px;cursor:pointer;
+  font-size:13px;font-weight:600;color:var(--muted);
+  transition:all .15s;border:1px solid transparent;
+  background:transparent;width:100%;text-align:left;
+}
+.sb-item:hover{background:rgba(168,85,247,0.07);color:var(--text);border-color:rgba(168,85,247,0.15);}
+.sb-item.active{background:rgba(168,85,247,0.12);color:#c084fc;border-color:rgba(168,85,247,0.3);}
+.sb-item .icon{font-size:15px;width:20px;text-align:center;flex-shrink:0;}
+.sb-badge-notif{
+  margin-left:auto;background:var(--orange);color:#000;
+  border-radius:99px;font-size:9px;font-weight:700;
+  padding:1px 6px;display:none;
+}
+.sb-badge-notif.show{display:block;}
+
+.sb-footer{padding:14px 18px;border-top:1px solid rgba(168,85,247,0.15);}
+.sync-pill{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted);}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--muted);}
+.dot.on{background:var(--green);box-shadow:0 0 6px var(--green);animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+/* TOPBAR */
+.admin-topbar{
+  padding:14px 24px;border-bottom:1px solid rgba(168,85,247,0.15);
+  background:rgba(6,14,8,0.98);
+  display:flex;align-items:center;justify-content:space-between;
+  flex-shrink:0;
+}
+.topbar-title{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:3px;
+  background:linear-gradient(90deg,var(--yellow),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.topbar-right{display:flex;align-items:center;gap:10px;}
+.btn-goback{
+  padding:6px 14px;border-radius:8px;border:1px solid var(--border-p);
+  background:transparent;color:var(--purple);font-size:12px;font-weight:700;cursor:pointer;
+  transition:all .18s;text-decoration:none;display:inline-flex;align-items:center;gap:5px;
+}
+.btn-goback:hover{background:rgba(168,85,247,0.1);}
+
+/* CONTENT AREAS */
+.admin-content{flex:1;padding:24px;overflow-y:auto;}
+.tab-page{display:none;}
+.tab-page.active{display:block;animation:fadeIn .22s ease;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+/* CARDS & GLASS */
+.glass{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin-bottom:16px;}
+.glass-p{background:rgba(168,85,247,0.06);border:1px solid var(--border-p);border-radius:var(--radius);padding:18px;margin-bottom:16px;}
+.sec-title{font-family:'Bebas Neue',sans-serif;font-size:30px;letter-spacing:3px;
+  background:linear-gradient(90deg,var(--yellow),#dff5e0);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:3px;}
+.sec-sub{color:var(--muted);font-size:12px;margin-bottom:20px;}
+.card-label{font-size:10px;text-transform:uppercase;letter-spacing:2px;color:var(--muted);margin-bottom:8px;font-weight:700;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
+@media(max-width:700px){.grid2,.grid3{grid-template-columns:1fr}.admin-sidebar{display:none;}.admin-layout{flex-direction:column;}}
+
+/* STATS */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin-bottom:18px;}
+.stat-card{background:rgba(8,20,10,0.7);border:1px solid var(--border);border-radius:10px;padding:14px 12px;text-align:center;}
+.stat-num{font-family:'Bebas Neue',sans-serif;font-size:34px;letter-spacing:2px;color:var(--yellow);}
+.stat-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:2px;}
+
+/* FORMS */
+label{display:block;font-size:10px;font-weight:700;color:var(--muted);margin-bottom:3px;margin-top:12px;text-transform:uppercase;letter-spacing:1px;}
+label:first-child{margin-top:0;}
+input[type=text],input[type=number],input[type=email],input[type=color],select,textarea{
+  width:100%;padding:8px 11px;background:rgba(0,0,0,0.35);border:1px solid var(--border);border-radius:7px;
+  color:var(--text);font-size:13px;font-family:'DM Sans',sans-serif;outline:none;transition:border-color .18s;resize:vertical;}
+input:focus,select:focus,textarea:focus{border-color:var(--purple);}
+input:-webkit-autofill{-webkit-box-shadow:0 0 0 1000px #0a1f0e inset;-webkit-text-fill-color:var(--text);}
+.help-text{font-size:10px;color:var(--muted);margin-top:4px;line-height:1.5;}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:8px;
+  font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer;border:none;transition:all .18s;}
+.btn-p{background:linear-gradient(135deg,var(--purple),var(--indigo));color:#fff;}
+.btn-p:hover{opacity:.87;transform:translateY(-1px);}
+.btn-y{background:var(--yellow);color:#000;}
+.btn-y:hover{background:#ffd85a;transform:translateY(-1px);}
+.btn-r{background:rgba(255,68,68,0.13);color:var(--red);border:1px solid rgba(255,68,68,0.28);}
+.btn-r:hover{background:rgba(255,68,68,0.22);}
+.btn-g{background:rgba(74,222,128,0.13);color:var(--green);border:1px solid rgba(74,222,128,0.28);}
+.btn-g:hover{background:rgba(74,222,128,0.22);}
+.btn-out{background:transparent;color:var(--purple);border:1px solid var(--border-p);}
+.btn-out:hover{background:rgba(168,85,247,0.1);}
+.btn-sm{padding:5px 11px;font-size:11px;border-radius:6px;}
+.btn-blk{width:100%;justify-content:center;}
+.mt8{margin-top:8px;}.mt12{margin-top:12px;}.mt16{margin-top:16px;}.mt20{margin-top:20px;}
+
+/* BADGES */
+.badge{display:inline-block;padding:2px 9px;border-radius:99px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;}
+.badge-pend{background:rgba(249,115,22,0.15);color:var(--orange);border:1px solid rgba(249,115,22,0.3);}
+.badge-acc{background:rgba(74,222,128,0.12);color:var(--green);border:1px solid rgba(74,222,128,0.25);}
+.badge-rej{background:rgba(255,68,68,0.12);color:var(--red);border:1px solid rgba(255,68,68,0.25);}
+
+/* AROW (solicitudes) */
+.arow{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:9px;
+  background:rgba(8,20,10,0.5);border:1px solid var(--border);margin-bottom:7px;transition:border-color .15s;}
+.arow:hover{border-color:rgba(168,85,247,0.3);}
+.arow-info{flex:1;min-width:0;}
+.arow-name{font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.arow-meta{font-size:10px;color:var(--muted);margin-top:2px;}
+.arow-actions{display:flex;gap:5px;flex-shrink:0;}
+
+/* AI KNOWLEDGE BASE */
+.kb-entry{
+  background:rgba(168,85,247,0.05);border:1px solid rgba(168,85,247,0.2);
+  border-radius:9px;padding:12px 14px;margin-bottom:8px;
+  display:flex;align-items:flex-start;gap:10px;
+}
+.kb-entry-text{flex:1;font-size:13px;line-height:1.6;color:var(--text);}
+.kb-entry-del{background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:14px;
+  flex-shrink:0;padding:2px 6px;border-radius:5px;transition:color .15s;}
+.kb-entry-del:hover{color:var(--red);}
+.kb-entry-cat{font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--purple);
+  font-weight:700;margin-bottom:4px;}
+
+/* CHAT VIEWER */
+.chat-list{display:flex;flex-direction:column;gap:8px;}
+.chat-session-card{
+  background:rgba(8,20,10,0.6);border:1px solid var(--border);border-radius:10px;
+  padding:12px 14px;cursor:pointer;transition:all .15s;
+}
+.chat-session-card:hover{border-color:rgba(168,85,247,0.4);background:rgba(168,85,247,0.05);}
+.chat-session-card.active{border-color:var(--purple);}
+.csc-top{display:flex;align-items:center;gap:10px;margin-bottom:6px;}
+.csc-avatar{width:36px;height:36px;border-radius:50%;background:rgba(168,85,247,0.15);
+  border:2px solid rgba(168,85,247,0.35);display:flex;align-items:center;justify-content:center;
+  font-size:14px;flex-shrink:0;}
+.csc-name{font-weight:700;font-size:13px;}
+.csc-time{font-size:10px;color:var(--muted);margin-left:auto;}
+.csc-preview{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.csc-unread{
+  display:inline-block;background:var(--purple);color:#fff;
+  border-radius:99px;font-size:9px;font-weight:700;padding:1px 7px;
+  margin-left:auto;
+}
+
+/* CHAT MESSAGES VIEWER */
+.chat-viewer-wrap{
+  display:flex;gap:18px;height:calc(100vh - 160px);
+}
+.chat-list-col{width:280px;flex-shrink:0;overflow-y:auto;}
+.chat-detail-col{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+.chat-detail-header{
+  padding:12px 16px;border-bottom:1px solid var(--border-p);
+  background:rgba(8,20,10,0.5);border-radius:10px 10px 0 0;
+  display:flex;align-items:center;gap:10px;
+}
+.chat-messages-area{
+  flex:1;overflow-y:auto;padding:14px;
+  background:rgba(4,12,6,0.4);
+  display:flex;flex-direction:column;gap:8px;
+}
+.chat-messages-area::-webkit-scrollbar{width:4px;}
+.chat-messages-area::-webkit-scrollbar-thumb{background:rgba(168,85,247,0.3);border-radius:99px;}
+.cmsg{max-width:80%;padding:8px 12px;border-radius:10px;font-size:12px;line-height:1.55;}
+.cmsg.user{
+  background:rgba(245,200,66,0.1);border:1px solid rgba(245,200,66,0.2);
+  align-self:flex-end;border-bottom-right-radius:3px;
+}
+.cmsg.bot{
+  background:rgba(168,85,247,0.1);border:1px solid rgba(168,85,247,0.2);
+  align-self:flex-start;border-bottom-left-radius:3px;
+}
+.cmsg-role{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;
+  margin-bottom:3px;color:var(--muted);}
+.cmsg-time{font-size:9px;color:var(--muted);margin-top:3px;text-align:right;}
+
+/* ADMIN REPLY BOX */
+.admin-reply-box{
+  padding:12px;border-top:1px solid var(--border-p);
+  background:rgba(8,20,10,0.5);border-radius:0 0 10px 10px;
+  display:flex;gap:8px;align-items:flex-end;
+}
+.admin-reply-input{
+  flex:1;padding:8px 11px;border-radius:8px;
+  background:rgba(0,0,0,0.3);border:1px solid rgba(168,85,247,0.25);
+  color:var(--text);font-size:12px;font-family:'DM Sans',sans-serif;
+  outline:none;resize:none;min-height:36px;max-height:100px;line-height:1.5;
+}
+.admin-reply-input:focus{border-color:var(--purple);}
+.admin-reply-send{
+  padding:8px 14px;border-radius:8px;border:none;
+  background:linear-gradient(135deg,var(--purple),var(--indigo));
+  color:#fff;font-size:12px;font-weight:700;cursor:pointer;
+  transition:opacity .18s;flex-shrink:0;
+}
+.admin-reply-send:hover{opacity:.85;}
+.cmsg.admin-sent{
+  background:rgba(0,229,255,0.08);border:1px solid rgba(0,229,255,0.2);
+  align-self:flex-end;border-bottom-right-radius:3px;
+}
+
+/* TOAST */
+#toast{
+  position:fixed;bottom:24px;right:24px;z-index:9999;
+  background:rgba(12,28,14,0.96);border:1px solid var(--border);
+  color:var(--text);padding:10px 16px;border-radius:9px;font-size:12px;
+  box-shadow:0 4px 20px rgba(0,0,0,0.5);opacity:0;pointer-events:none;transition:opacity .3s;
+}
+#toast.show{opacity:1;}
+
+/* NO SELECTION */
+.empty-state{text-align:center;padding:40px 20px;color:var(--muted);font-size:13px;}
+.empty-state .es-icon{font-size:40px;margin-bottom:12px;}
+
+/* COLOR INPUT */
+.color-input-row{display:flex;align-items:center;gap:8px;}
+.color-input-row input[type=color]{width:46px;height:34px;padding:2px;border-radius:6px;cursor:pointer;}
+.color-input-row input[type=text]{flex:1;}
+
+/* INFO BOX */
+.info-box{
+  background:rgba(0,229,255,0.05);border:1px solid rgba(0,229,255,0.2);
+  border-radius:9px;padding:12px 14px;font-size:12px;color:var(--muted);line-height:1.6;
+  margin-bottom:14px;
+}
+.info-box strong{color:var(--cyan);}
+</style>
+</head>
+<body>
+
+<div class="admin-layout">
+  <!-- SIDEBAR -->
+  <div class="admin-sidebar">
+    <div class="sb-logo">
+      <div class="sb-brand">WYDNOVA</div>
+      <div class="sb-sub">PANEL DE ADMINISTRACIÓN</div>
+      <div class="sb-badge">ADMIN</div>
+    </div>
+    <nav class="sb-nav">
+      <div class="sb-section">General</div>
+      <button class="sb-item active" onclick="showTab('dashboard',this)"><span class="icon">📊</span>Dashboard</button>
+      <button class="sb-item" onclick="showTab('solicitudes',this)"><span class="icon">📋</span>Solicitudes<span class="sb-badge-notif" id="sb-pend">0</span></button>
+      <button class="sb-item" onclick="showTab('equipos',this)"><span class="icon">🛡️</span>Equipos</button>
+      <button class="sb-item" onclick="showTab('fixture',this)"><span class="icon">🏆</span>Fixture</button>
+
+      <div class="sb-section">Configuración</div>
+      <button class="sb-item" onclick="showTab('config',this)"><span class="icon">⚙️</span>Config web</button>
+      <button class="sb-item" onclick="showTab('info-editor',this)"><span class="icon">📝</span>Contenido info</button>
+      <button class="sb-item" onclick="showTab('usuarios',this)"><span class="icon">👥</span>Usuarios</button>
+      <button class="sb-item" onclick="showTab('logs',this)"><span class="icon">📜</span>Logs</button>
+
+      <div class="sb-section">Asistente IA</div>
+      <button class="sb-item" onclick="showTab('ai-config',this)"><span class="icon">🧠</span>Base de conocimiento</button>
+      <button class="sb-item" onclick="showTab('ai-chats',this)"><span class="icon">💬</span>Chats de usuarios<span class="sb-badge-notif" id="sb-chats">0</span></button>
+    </nav>
+    <div class="sb-footer">
+      <div class="sync-pill"><div class="dot" id="sdot"></div><span id="sstatus">Conectando...</span></div>
+      <div style="margin-top:8px;font-size:10px;color:var(--muted);">Firebase conectado</div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="admin-main">
+    <div class="admin-topbar">
+      <div class="topbar-title" id="topbar-title">DASHBOARD</div>
+      <div class="topbar-right">
+        <a href="index.html" class="btn-goback">← Ver web pública</a>
+      </div>
+    </div>
+
+    <div class="admin-content">
+      <!-- =================== DASHBOARD =================== -->
+      <div class="tab-page active" id="tab-dashboard">
+        <div class="sec-title">DASHBOARD</div>
+        <div class="sec-sub">Resumen general del torneo</div>
+        <div class="stat-grid" id="adash-stats"></div>
+        <div class="glass">
+          <div class="card-label">Actividad reciente</div>
+          <div id="adash-logs" style="font-size:12px;color:var(--muted);">Cargando...</div>
+        </div>
+      </div>
+
+      <!-- =================== SOLICITUDES =================== -->
+      <div class="tab-page" id="tab-solicitudes">
+        <div class="sec-title">SOLICITUDES</div>
+        <div class="sec-sub">Revisá y gestioná las inscripciones</div>
+        <div id="admin-sols-wrap">
+          <div style="color:var(--muted);font-size:12px;">Cargando solicitudes...</div>
+        </div>
+      </div>
+
+      <!-- =================== EQUIPOS =================== -->
+      <div class="tab-page" id="tab-equipos">
+        <div class="sec-title">EQUIPOS CONFIRMADOS</div>
+        <div class="sec-sub">Equipos con estado aceptado</div>
+        <div id="admin-teams-wrap"></div>
+      </div>
+
+      <!-- =================== FIXTURE =================== -->
+      <div class="tab-page" id="tab-fixture">
+        <div class="sec-title">FIXTURE</div>
+        <div class="sec-sub">Gestión del bracket del torneo</div>
+        <div class="info-box">💡 El fixture se administra desde el <strong>panel flotante ⚙️ de la web principal</strong>. Acá podés ver el estado actual.</div>
+        <div id="admin-fixture-view" style="font-size:12px;color:var(--muted);">Cargando...</div>
+      </div>
+
+      <!-- =================== CONFIG =================== -->
+      <div class="tab-page" id="tab-config">
+        <div class="sec-title">CONFIGURACIÓN</div>
+        <div class="sec-sub">Personalizá la apariencia y datos del torneo</div>
+
+        <div class="glass">
+          <div class="card-label">Datos básicos</div>
+          <div class="grid2">
+            <div>
+              <label>Título del header</label>
+              <input type="text" id="cfg-title" placeholder="WYDNOVA ⚽">
+            </div>
+            <div>
+              <label>Subtítulo</label>
+              <input type="text" id="cfg-sub" placeholder="Torneo de Fútbol — Promo...">
+            </div>
+            <div>
+              <label>Alias Mercado Pago</label>
+              <input type="text" id="cfg-mp" placeholder="wydnova.torneo">
+            </div>
+            <div>
+              <label>Precio por jugador ($)</label>
+              <input type="number" id="cfg-precio" placeholder="3500">
+            </div>
+            <div>
+              <label>Cupos máximos</label>
+              <input type="number" id="cfg-cupos" placeholder="32">
+            </div>
+            <div>
+              <label>Email de contacto (para el bot)</label>
+              <input type="email" id="cfg-contact-email" placeholder="organizador@email.com">
+              <div class="help-text">El bot le da este email a los usuarios cuando no puede responder.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="glass">
+          <div class="card-label">Colores del sitio</div>
+          <div class="grid2">
+            <div>
+              <label>Color acento 1 (amarillo)</label>
+              <div class="color-input-row">
+                <input type="color" id="cfg-color1-picker" value="#f5c842" oninput="syncColor('cfg-color1','cfg-color1-picker')">
+                <input type="text" id="cfg-color1" value="#f5c842" placeholder="#f5c842" oninput="syncColor('cfg-color1-picker','cfg-color1')">
+              </div>
+            </div>
+            <div>
+              <label>Color acento 2 (cyan)</label>
+              <div class="color-input-row">
+                <input type="color" id="cfg-color2-picker" value="#00e5ff" oninput="syncColor('cfg-color2','cfg-color2-picker')">
+                <input type="text" id="cfg-color2" value="#00e5ff" placeholder="#00e5ff" oninput="syncColor('cfg-color2-picker','cfg-color2')">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="glass">
+          <div class="card-label">Instagram (descuento)</div>
+          <div class="grid2">
+            <div>
+              <label>Cuenta de Instagram</label>
+              <input type="text" id="cfg-ig-cuenta" placeholder="wydnova.torneo">
+            </div>
+            <div>
+              <label>Descuento por seguir (%)</label>
+              <input type="number" id="cfg-ig-desc" placeholder="14">
+            </div>
+          </div>
+        </div>
+
+        <button class="btn btn-p btn-blk mt12" onclick="saveCfg()">💾 Guardar configuración</button>
+      </div>
+
+      <!-- =================== INFO EDITOR =================== -->
+      <div class="tab-page" id="tab-info-editor">
+        <div class="sec-title">CONTENIDO INFO</div>
+        <div class="sec-sub">Editá las secciones que ven los usuarios en la pestaña Info</div>
+        <div class="info-box">💡 Estos cambios se guardan en Firebase y se reflejan en tiempo real en la web pública.</div>
+        <div id="info-editor-wrap">
+          <div style="color:var(--muted);font-size:12px;">Cargando editor...</div>
+        </div>
+        <button class="btn btn-p mt12" onclick="addInfoSection()">+ Nueva sección</button>
+        <button class="btn btn-y mt12" onclick="saveInfoSections()" style="margin-left:8px;">💾 Guardar secciones</button>
+      </div>
+
+      <!-- =================== USUARIOS =================== -->
+      <div class="tab-page" id="tab-usuarios">
+        <div class="sec-title">USUARIOS</div>
+        <div class="sec-sub">Cuentas registradas vía Google</div>
+        <div id="admin-users-wrap"></div>
+      </div>
+
+      <!-- =================== LOGS =================== -->
+      <div class="tab-page" id="tab-logs">
+        <div class="sec-title">LOGS</div>
+        <div class="sec-sub">Registro de actividad del sistema</div>
+        <div id="admin-logs-wrap" style="font-size:11px;"></div>
+      </div>
+
+      <!-- =================== AI CONFIG =================== -->
+      <div class="tab-page" id="tab-ai-config">
+        <div class="sec-title">BASE DE CONOCIMIENTO IA</div>
+        <div class="sec-sub">Información extra para que el bot resuelva mejor las dudas</div>
+
+        <div class="info-box">
+          <strong>¿Cómo funciona?</strong><br>
+          El bot ya tiene acceso automático a los datos del torneo (precios, equipos, cupos, etc.) y al contenido de las secciones de Info. Acá podés agregar información adicional que no está en la web: datos del lugar, cómo llegar, preguntas frecuentes, reglas específicas, lo que se te ocurra.<br><br>
+          <strong>Tip:</strong> Cuanto más específico seas, mejor responde el bot.
+        </div>
+
+        <!-- Add new entry -->
+        <div class="glass-p">
+          <div class="card-label">Agregar información</div>
+          <div class="grid2">
+            <div>
+              <label>Categoría (opcional)</label>
+              <select id="kb-cat">
+                <option value="general">General</option>
+                <option value="lugar">Lugar y transporte</option>
+                <option value="reglas">Reglas del torneo</option>
+                <option value="precios">Precios y pagos</option>
+                <option value="inscripcion">Inscripción</option>
+                <option value="contacto">Contacto</option>
+                <option value="otro">Otro</option>
+              </select>
+            </div>
+          </div>
+          <label>Información a agregar</label>
+          <textarea id="kb-new-text" rows="3" placeholder="Ej: El torneo se juega en la cancha de Maipú, Mendoza. Dirección: Av. San Martín 1234. Para llegar en colectivo tomar las líneas 3, 5 o 10."></textarea>
+          <button class="btn btn-p mt12" onclick="addKBEntry()">+ Agregar al conocimiento del bot</button>
+        </div>
+
+        <!-- Existing entries -->
+        <div class="card-label" style="margin-top:8px;">Información guardada (el bot la usa en cada respuesta)</div>
+        <div id="kb-entries-list">
+          <div style="color:var(--muted);font-size:12px;">Cargando...</div>
+        </div>
+
+        <!-- AI API Key config -->
+        <div class="glass" style="margin-top:20px;">
+          <div class="card-label">Configuración de Gemini AI</div>
+          <label>API Key de Google Gemini</label>
+          <input type="text" id="cfg-gemini-key" placeholder="AIzaSy...">
+          <div class="help-text">Obtené tu clave gratis en <strong>aistudio.google.com</strong>. Esta clave se usa tanto en la web principal como acá.</div>
+          <label style="margin-top:10px;">Nombre del bot (visible en el chat)</label>
+          <input type="text" id="cfg-bot-name" placeholder="Asistente Wydnova">
+          <button class="btn btn-p mt12" onclick="saveAIConfig()">💾 Guardar config IA</button>
+        </div>
+      </div>
+
+      <!-- =================== AI CHATS =================== -->
+      <div class="tab-page" id="tab-ai-chats">
+        <div class="sec-title">CHATS DE USUARIOS</div>
+        <div class="sec-sub">Conversaciones con el asistente IA — podés responderles vos mismo</div>
+        <div class="chat-viewer-wrap">
+          <!-- Lista de chats -->
+          <div class="chat-list-col">
+            <div style="margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;">
+              <div class="card-label" style="margin:0;">Conversaciones</div>
+              <button class="btn btn-sm btn-out" onclick="loadChats()" style="font-size:10px;">🔄</button>
+            </div>
+            <div id="chats-list-wrap">
+              <div class="empty-state"><div class="es-icon">💬</div>Cargando chats...</div>
+            </div>
+          </div>
+          <!-- Detalle del chat -->
+          <div class="chat-detail-col" id="chat-detail-col">
+            <div class="empty-state" style="margin:auto;">
+              <div class="es-icon">💬</div>
+              Seleccioná una conversación para verla
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /admin-content -->
+  </div><!-- /admin-main -->
+</div><!-- /admin-layout -->
+
+<div id="toast"></div>
+
+<script>
+/* ===== FIREBASE ===== */
+firebase.initializeApp({
+  apiKey:"AIzaSyB2QHzrNI6odng8k6w3xdIcuOtqyPubTO4",
+  authDomain:"torneo-wydnova-futbol.firebaseapp.com",
+  databaseURL:"https://torneo-wydnova-futbol-default-rtdb.firebaseio.com",
+  projectId:"torneo-wydnova-futbol",
+  storageBucket:"torneo-wydnova-futbol.firebasestorage.app",
+  messagingSenderId:"650939033746",
+  appId:"1:650939033746:web:7004434922b147c58c9e4b"
+});
+const db = firebase.database();
+
+let S = {teams:{},bracket:{},info:{},config:{},users:{},accounts:{},logs:{},aiChats:{},aiKB:{}};
+let infoSections = [];
+let selectedChatId = null;
+
+function id(i){return document.getElementById(i);}
+function toast(m){const t=id('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),3600);}
+function x(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function fmtTs(ts){return ts?new Date(ts).toLocaleString('es-AR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'—';}
+
+/* ===== FIREBASE LISTENER ===== */
+db.ref('/').on('value', snap=>{
+  const d = snap.val()||{};
+  S.teams    = d.teams    || {};
+  S.bracket  = d.bracket  || {};
+  S.info     = d.info     || {};
+  S.config   = d.config   || {};
+  S.users    = d.users    || {};
+  S.accounts = d.accounts || {};
+  S.logs     = d.logs     || {};
+  S.aiChats  = d.aiChats  || {};
+  S.aiKB     = d.aiKB     || {};
+
+  id('sdot').className = 'dot on';
+  id('sstatus').textContent = 'En línea';
+
+  renderAll();
+},()=>{
+  id('sdot').className = 'dot';
+  id('sstatus').textContent = 'Sin conexión';
+});
+
+function renderAll(){
+  renderDashboard();
+  renderSolicitudes();
+  renderEquipos();
+  renderUsuarios();
+  renderLogs();
+  renderKBEntries();
+  renderChats();
+  loadCfgForm();
+  loadInfoEditor();
+}
+
+/* ===== TAB NAVIGATION ===== */
+function showTab(name, btn){
+  document.querySelectorAll('.tab-page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.sb-item').forEach(b=>b.classList.remove('active'));
+  id('tab-'+name).classList.add('active');
+  if(btn) btn.classList.add('active');
+  id('topbar-title').textContent = name.replace('-',' ').toUpperCase();
+  if(name==='ai-chats') loadChats();
+}
+
+/* ===== DASHBOARD ===== */
+function renderDashboard(){
+  const all = Object.values(S.teams||{});
+  const pend = all.filter(t=>t.status==='pending').length;
+  const acc  = all.filter(t=>t.status==='accepted').length;
+  const rej  = all.filter(t=>t.status==='rejected').length;
+  const maxQ = S.config?.cupos||32;
+  const chats= Object.keys(S.aiChats||{}).length;
+
+  id('adash-stats').innerHTML=`
+    <div class="stat-card"><div class="stat-num" style="color:var(--orange)">${pend}</div><div class="stat-lbl">Pendientes</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--green)">${acc}</div><div class="stat-lbl">Aceptados</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--red)">${rej}</div><div class="stat-lbl">Rechazados</div></div>
+    <div class="stat-card"><div class="stat-num">${all.length}</div><div class="stat-lbl">Total</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--cyan)">${maxQ-acc}</div><div class="stat-lbl">Cupos libres</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--purple)">${chats}</div><div class="stat-lbl">Chats IA</div></div>`;
+
+  // Actualizar badge sidebar
+  if(pend>0){ id('sb-pend').textContent=pend; id('sb-pend').classList.add('show'); }
+  else id('sb-pend').classList.remove('show');
+
+  // Logs recientes
+  const logs = Object.values(S.logs||{}).sort((a,b)=>b.ts-a.ts).slice(0,8);
+  id('adash-logs').innerHTML = logs.length
+    ? logs.map(l=>`<div style="padding:5px 0;border-bottom:1px solid var(--border);display:flex;gap:10px;align-items:baseline;">
+        <span style="color:var(--muted);font-size:9px;flex-shrink:0;">${fmtTs(l.ts)}</span>
+        <span style="color:var(--muted);font-size:9px;">[${x(l.by||'?')}]</span>
+        <span>${x(l.msg||'')}</span>
+      </div>`).join('')
+    : '<span style="color:var(--muted);">Sin actividad registrada.</span>';
+}
+
+/* ===== SOLICITUDES ===== */
+function renderSolicitudes(){
+  const all = Object.entries(S.teams||{});
+  const pend= all.filter(([,t])=>t.status==='pending');
+  const acc = all.filter(([,t])=>t.status==='accepted');
+  const rej = all.filter(([,t])=>t.status==='rejected');
+  let h='';
+
+  if(pend.length){
+    h+=`<div style="font-size:10px;letter-spacing:2px;color:var(--orange);font-weight:700;text-transform:uppercase;margin-bottom:7px;">⏳ Pendientes (${pend.length})</div>`;
+    h+=pend.map(([tid,t])=>{
+      const lh=t.logoData?`<img src="${t.logoData}" style="width:40px;height:40px;border-radius:50%;border:2px solid var(--yellow);object-fit:cover;">`:`<div style="width:40px;height:40px;border-radius:50%;background:#0a2010;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:17px;">⚽</div>`;
+      const ps=(t.players||[]).map(p=>`${x(p.nombre)} ${x(p.apellido)}`).join(' · ');
+      return `<div class="arow" style="align-items:flex-start;">
+        <div style="flex-shrink:0;">${lh}</div>
+        <div class="arow-info">
+          <div class="arow-name">${x(t.name)}</div>
+          <div class="arow-meta">${fmtTs(t.ts)} · ${x(t.ownerUsername||'Sin cuenta')}</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px;">${ps}</div>
+        </div>
+        <div class="arow-actions" style="flex-direction:column;gap:4px;">
+          <button class="btn btn-g btn-sm" onclick="accTeam('${tid}')">✅ Aceptar</button>
+          <button class="btn btn-r btn-sm" onclick="rejTeam('${tid}')">❌ Rechazar</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+  if(acc.length){
+    h+=`<div style="font-size:10px;letter-spacing:2px;color:var(--green);font-weight:700;text-transform:uppercase;margin:14px 0 7px;">✅ Aceptados (${acc.length})</div>`;
+    h+=acc.map(([tid,t])=>`<div class="arow">
+      <div class="arow-info"><div class="arow-name">${x(t.name)}</div><div class="arow-meta">${fmtTs(t.ts)}</div></div>
+      <div class="arow-actions">
+        <button class="btn btn-r btn-sm" onclick="if(confirm('¿Eliminar equipo?'))db.ref('/teams/${tid}').remove()">🗑️</button>
+      </div>
+    </div>`).join('');
+  }
+  if(rej.length){
+    h+=`<div style="font-size:10px;letter-spacing:2px;color:var(--red);font-weight:700;text-transform:uppercase;margin:14px 0 7px;">❌ Rechazados (${rej.length})</div>`;
+    h+=rej.map(([tid,t])=>`<div class="arow" style="opacity:.65;">
+      <div class="arow-info">
+        <div class="arow-name">${x(t.name)}</div>
+        ${t.rejectReason?`<div style="font-size:10px;color:var(--red);">Motivo: ${x(t.rejectReason)}</div>`:''}
+      </div>
+      <button class="btn btn-r btn-sm" onclick="if(confirm('¿Eliminar?'))db.ref('/teams/${tid}').remove()">🗑️</button>
+    </div>`).join('');
+  }
+  if(!h) h='<div style="color:var(--muted);font-size:12px;">Sin solicitudes todavía.</div>';
+  id('admin-sols-wrap').innerHTML = h;
+}
+
+async function accTeam(tid){
+  if(!confirm('¿Aceptar este equipo?')) return;
+  await db.ref('/teams/'+tid).update({status:'accepted', paid:true, last_updated:Date.now()});
+  logA(`Equipo aceptado desde admin (${tid})`);
+  toast('✅ Equipo aceptado');
+}
+async function rejTeam(tid){
+  const reason = prompt('Motivo del rechazo (opcional):');
+  if(reason===null) return;
+  await db.ref('/teams/'+tid).update({status:'rejected', rejectReason:reason||null, last_updated:Date.now()});
+  logA(`Equipo rechazado desde admin (${tid})`);
+  toast('❌ Equipo rechazado');
+}
+
+/* ===== EQUIPOS ===== */
+function renderEquipos(){
+  const acc = Object.entries(S.teams||{}).filter(([,t])=>t.status==='accepted');
+  if(!acc.length){ id('admin-teams-wrap').innerHTML='<div style="color:var(--muted);font-size:12px;">No hay equipos aceptados todavía.</div>'; return; }
+  id('admin-teams-wrap').innerHTML = acc.map(([tid,t])=>{
+    const lh=t.logoData?`<img src="${t.logoData}" style="width:36px;height:36px;border-radius:50%;border:2px solid var(--yellow);object-fit:cover;">`:`<div style="width:36px;height:36px;border-radius:50%;background:#0a2010;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:14px;">⚽</div>`;
+    const ps=(t.players||[]).map(p=>`${p.nombre} ${p.apellido} (${p.curso})`).join(', ');
+    return `<div class="arow">
+      ${lh}
+      <div class="arow-info">
+        <div class="arow-name">${x(t.name)}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px;">${x(ps)}</div>
+      </div>
+      <button class="btn btn-r btn-sm" onclick="if(confirm('¿Eliminar equipo?'))db.ref('/teams/${tid}').remove()">🗑️</button>
+    </div>`;
+  }).join('');
+}
+
+/* ===== USUARIOS ===== */
+function renderUsuarios(){
+  const accs = Object.entries(S.accounts||{});
+  if(!accs.length){ id('admin-users-wrap').innerHTML='<div style="color:var(--muted);font-size:12px;">Sin usuarios registrados.</div>'; return; }
+  id('admin-users-wrap').innerHTML = accs.sort((a,b)=>b[1].ts-a[1].ts).map(([uid,u])=>`
+    <div class="arow">
+      <div style="width:36px;height:36px;border-radius:50%;background:#0a2010;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;overflow:hidden;">
+        ${u.avatar?`<img src="${u.avatar}" style="width:100%;height:100%;object-fit:cover;">`:`<span>${(u.firstname||u.username||'?')[0].toUpperCase()}</span>`}
+      </div>
+      <div class="arow-info">
+        <div class="arow-name">${x(u.firstname||'')} ${x(u.lastname||'')}</div>
+        <div class="arow-meta">${x(u.email||'')} · <span class="badge badge-${u.role==='admin'?'acc':u.role==='mod'?'pend':'rej'}">${u.role||'user'}</span> · ${fmtTs(u.ts)}</div>
+      </div>
+      <select onchange="setUserRole('${uid}',this.value)" style="width:90px;padding:4px 6px;font-size:11px;">
+        <option value="user" ${(u.role||'user')==='user'?'selected':''}>user</option>
+        <option value="mod" ${u.role==='mod'?'selected':''}>mod</option>
+        <option value="admin" ${u.role==='admin'?'selected':''}>admin</option>
+      </select>
+    </div>`).join('');
+}
+async function setUserRole(uid, role){
+  await db.ref('/accounts/'+uid).update({role});
+  logA(`Rol de ${uid} cambiado a ${role}`);
+  toast('✅ Rol actualizado');
+}
+
+/* ===== LOGS ===== */
+function renderLogs(){
+  const logs = Object.values(S.logs||{}).sort((a,b)=>b.ts-a.ts).slice(0,50);
+  id('admin-logs-wrap').innerHTML = logs.length
+    ? logs.map(l=>`<div style="padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04);display:flex;gap:10px;align-items:baseline;">
+        <span style="color:var(--muted);font-size:9px;flex-shrink:0;min-width:90px;">${fmtTs(l.ts)}</span>
+        <span style="color:var(--purple);font-size:9px;flex-shrink:0;">[${x(l.by||'?')}]</span>
+        <span style="font-size:11px;">${x(l.msg||'')}</span>
+      </div>`).join('')
+    : '<div style="color:var(--muted);font-size:12px;">Sin actividad registrada.</div>';
+}
+
+/* ===== CONFIG ===== */
+function loadCfgForm(){
+  const c = S.config||{};
+  if(c.headerTitle) id('cfg-title').value=c.headerTitle;
+  if(c.headerSub) id('cfg-sub').value=c.headerSub;
+  if(c.mpAlias) id('cfg-mp').value=c.mpAlias;
+  if(c.precio) id('cfg-precio').value=c.precio;
+  if(c.cupos) id('cfg-cupos').value=c.cupos;
+  if(c.contactEmail) id('cfg-contact-email').value=c.contactEmail;
+  if(c.color1){ id('cfg-color1').value=c.color1; id('cfg-color1-picker').value=c.color1; }
+  if(c.color2){ id('cfg-color2').value=c.color2; id('cfg-color2-picker').value=c.color2; }
+  if(c.igCuenta) id('cfg-ig-cuenta').value=c.igCuenta;
+  if(c.igDescuento) id('cfg-ig-desc').value=c.igDescuento;
+  if(c.geminiKey) id('cfg-gemini-key').value=c.geminiKey;
+  if(c.botName) id('cfg-bot-name').value=c.botName;
+}
+function syncColor(targetId, sourceId){
+  id(targetId).value = id(sourceId).value;
+}
+async function saveCfg(){
+  const upd = {
+    headerTitle: id('cfg-title').value.trim()||null,
+    headerSub: id('cfg-sub').value.trim()||null,
+    mpAlias: id('cfg-mp').value.trim()||null,
+    precio: parseInt(id('cfg-precio').value)||null,
+    cupos: parseInt(id('cfg-cupos').value)||null,
+    contactEmail: id('cfg-contact-email').value.trim()||null,
+    color1: id('cfg-color1').value.trim()||null,
+    color2: id('cfg-color2').value.trim()||null,
+    igCuenta: id('cfg-ig-cuenta').value.trim()||null,
+    igDescuento: parseInt(id('cfg-ig-desc').value)||null,
+  };
+  Object.keys(upd).forEach(k=>{ if(upd[k]===null) delete upd[k]; });
+  await db.ref('/config').update(upd);
+  logA('Configuración actualizada desde admin externo');
+  toast('✅ Configuración guardada');
+}
+
+/* ===== AI CONFIG ===== */
+async function saveAIConfig(){
+  const key = id('cfg-gemini-key').value.trim();
+  const name = id('cfg-bot-name').value.trim();
+  const upd = {};
+  if(key) upd.geminiKey = key;
+  if(name) upd.botName = name;
+  if(Object.keys(upd).length){
+    await db.ref('/config').update(upd);
+    toast('✅ Config IA guardada');
+    logA('Config IA actualizada');
+  }
+}
+
+/* ===== KNOWLEDGE BASE ===== */
+function renderKBEntries(){
+  const entries = Object.entries(S.aiKB||{}).sort((a,b)=>b[1].ts-a[1].ts);
+  if(!entries.length){
+    id('kb-entries-list').innerHTML='<div style="color:var(--muted);font-size:12px;padding:12px 0;">El bot todavía no tiene información extra. Agregá entradas arriba.</div>';
+    return;
+  }
+  const catLabels={general:'General',lugar:'Lugar y transporte',reglas:'Reglas del torneo',precios:'Precios y pagos',inscripcion:'Inscripción',contacto:'Contacto',otro:'Otro'};
+  id('kb-entries-list').innerHTML = entries.map(([eid,e])=>`
+    <div class="kb-entry">
+      <div style="flex:1;">
+        <div class="kb-entry-cat">${catLabels[e.cat]||e.cat||'General'}</div>
+        <div class="kb-entry-text">${x(e.text)}</div>
+        <div style="font-size:9px;color:var(--muted);margin-top:5px;">${fmtTs(e.ts)}</div>
+      </div>
+      <button class="kb-entry-del" title="Eliminar" onclick="delKBEntry('${eid}')">🗑️</button>
+    </div>`).join('');
+}
+
+async function addKBEntry(){
+  const text = id('kb-new-text').value.trim();
+  const cat  = id('kb-cat').value;
+  if(!text) return toast('⚠️ Escribí algo primero');
+  await db.ref('/aiKB').push({text, cat, ts:Date.now()});
+  id('kb-new-text').value='';
+  await updateAIExtraInfo();
+  logA('Nueva entrada en base de conocimiento IA');
+  toast('✅ Información agregada al bot');
+}
+
+async function delKBEntry(eid){
+  if(!confirm('¿Eliminar esta información del bot?')) return;
+  await db.ref('/aiKB/'+eid).remove();
+  await updateAIExtraInfo();
+  toast('🗑️ Entrada eliminada');
+}
+
+async function updateAIExtraInfo(){
+  // Combina todas las entradas en un texto plano para que el bot lo use
+  const entries = Object.values(S.aiKB||{});
+  const combined = entries.map(e=>`[${e.cat||'general'}] ${e.text}`).join('\n');
+  await db.ref('/config').update({aiExtraInfo: combined});
+}
+
+/* ===== INFO EDITOR ===== */
+function loadInfoEditor(){
+  const raw = S.info.sections;
+  if(raw && Array.isArray(raw) && raw.length) infoSections = JSON.parse(JSON.stringify(raw));
+  else infoSections = [
+    {id:'datos',emoji:'📅',title:'Datos del evento',layout:'text',html:S.info.datos||'',images:[]},
+    {id:'reglamento',emoji:'📜',title:'Reglamento',layout:'text',html:S.info.reglamento||'',images:[]},
+    {id:'lugar',emoji:'📍',title:'Lugar',layout:'text',html:S.info.lugar||'',images:[]},
+  ];
+  renderInfoEditor();
+}
+function renderInfoEditor(){
+  const wrap = id('info-editor-wrap');
+  wrap.innerHTML = infoSections.map((sec,i)=>`
+    <div class="glass-p" style="margin-bottom:10px;">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;">
+        <input type="text" value="${x(sec.emoji||'')}" placeholder="📋" maxlength="4" style="width:50px;text-align:center;font-size:18px;" oninput="infoSections[${i}].emoji=this.value">
+        <input type="text" value="${x(sec.title||'')}" placeholder="Nombre de la pestaña" style="flex:1;" oninput="infoSections[${i}].title=this.value">
+        <button class="btn btn-r btn-sm" onclick="infoSections.splice(${i},1);renderInfoEditor()">✕</button>
+        ${i>0?`<button class="btn btn-sm btn-out" onclick="const t=infoSections[${i-1}];infoSections[${i-1}]=infoSections[${i}];infoSections[${i}]=t;renderInfoEditor()">↑</button>`:''}
+        ${i<infoSections.length-1?`<button class="btn btn-sm btn-out" onclick="const t=infoSections[${i+1}];infoSections[${i+1}]=infoSections[${i}];infoSections[${i}]=t;renderInfoEditor()">↓</button>`:''}
+      </div>
+      <label>Texto (HTML)</label>
+      <textarea rows="4" oninput="infoSections[${i}].html=this.value">${x(sec.html||'')}</textarea>
+    </div>`).join('');
+}
+function addInfoSection(){
+  infoSections.push({id:'sec_'+Date.now(),emoji:'📋',title:'Nueva sección',layout:'text',html:'',images:[]});
+  renderInfoEditor();
+}
+async function saveInfoSections(){
+  await db.ref('/info/sections').set(infoSections);
+  logA('Secciones de info actualizadas desde admin externo');
+  toast('✅ Secciones guardadas');
+}
+
+/* ===== CHAT VIEWER ===== */
+function renderChats(){
+  const chats = Object.entries(S.aiChats||{}).sort((a,b)=>(b[1].lastTs||0)-(a[1].lastTs||0));
+  id('sb-chats').textContent = chats.length;
+  if(chats.length) id('sb-chats').classList.add('show');
+  else id('sb-chats').classList.remove('show');
+
+  if(!chats.length){
+    id('chats-list-wrap').innerHTML='<div class="empty-state"><div class="es-icon">💬</div>Aún no hay chats de usuarios.</div>';
+    return;
+  }
+  id('chats-list-wrap').innerHTML = chats.map(([sid,c])=>`
+    <div class="chat-session-card ${selectedChatId===sid?'active':''}" onclick="openChat('${sid}')">
+      <div class="csc-top">
+        <div class="csc-avatar">👤</div>
+        <div>
+          <div class="csc-name">${x(c.displayName||'Visitante')}</div>
+          <div style="font-size:9px;color:var(--muted);">${x(c.uid||'anónimo')}</div>
+        </div>
+        <div class="csc-time">${fmtTs(c.lastTs)}</div>
+      </div>
+      <div class="csc-preview">${x(c.lastMessage||'Sin mensajes')}</div>
+    </div>`).join('');
+}
+
+function loadChats(){
+  // Fuerza re-render desde el estado actual
+  renderChats();
+  if(selectedChatId) openChat(selectedChatId);
+}
+
+function openChat(sid){
+  selectedChatId = sid;
+  renderChats(); // re-render para marcar activo
+
+  const c = S.aiChats[sid];
+  if(!c){ id('chat-detail-col').innerHTML='<div class="empty-state" style="margin:auto;"><div class="es-icon">⚠️</div>Chat no encontrado</div>'; return; }
+
+  // Construir mensajes
+  const msgs = Object.values(c.messages||{}).sort((a,b)=>a.ts-b.ts);
+  const msgsHtml = msgs.length
+    ? msgs.map(m=>`
+      <div class="cmsg ${m.role==='user'?'user':m.role==='admin-reply'?'admin-sent':'bot'}">
+        <div class="cmsg-role">${m.role==='user'?'Usuario':m.role==='admin-reply'?'Vos (admin)':'Bot IA'}</div>
+        ${x(m.text||'')}
+        <div class="cmsg-time">${fmtTs(m.ts)}</div>
+      </div>`).join('')
+    : '<div style="color:var(--muted);font-size:12px;text-align:center;">Sin mensajes en esta sesión</div>';
+
+  id('chat-detail-col').innerHTML = `
+    <div class="chat-detail-header">
+      <div class="csc-avatar">👤</div>
+      <div>
+        <div style="font-weight:700;font-size:14px;">${x(c.displayName||'Visitante')}</div>
+        <div style="font-size:10px;color:var(--muted);">${x(c.uid||'')} · ${fmtTs(c.lastTs)}</div>
+      </div>
+      <button class="btn btn-r btn-sm" style="margin-left:auto;" onclick="deleteChat('${sid}')">🗑️ Eliminar</button>
+    </div>
+    <div class="chat-messages-area" id="chat-msgs-area">${msgsHtml}</div>
+    <div class="admin-reply-box">
+      <textarea class="admin-reply-input" id="admin-reply-input" placeholder="Responderle vos mismo al usuario..." rows="1"
+        oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,100)+'px'"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendAdminReply('${sid}');}"></textarea>
+      <button class="admin-reply-send" onclick="sendAdminReply('${sid}')">Enviar ➤</button>
+    </div>`;
+
+  // Scroll al final
+  setTimeout(()=>{ const area = id('chat-msgs-area'); if(area) area.scrollTop = area.scrollHeight; }, 50);
+}
+
+async function sendAdminReply(sid){
+  const input = id('admin-reply-input');
+  const text = input?.value.trim();
+  if(!text) return;
+  input.value = '';
+  input.style.height = 'auto';
+  await db.ref('/aiChats/'+sid+'/messages').push({
+    role:'admin-reply', text, ts:Date.now()
+  });
+  await db.ref('/aiChats/'+sid).update({lastMessage:'[Admin]: '+text, lastTs:Date.now()});
+  logA('Admin respondió en chat IA ('+sid+')');
+  openChat(sid); // re-render el chat
+  toast('✅ Respuesta enviada');
+}
+
+async function deleteChat(sid){
+  if(!confirm('¿Eliminar esta conversación?')) return;
+  await db.ref('/aiChats/'+sid).remove();
+  selectedChatId = null;
+  id('chat-detail-col').innerHTML='<div class="empty-state" style="margin:auto;"><div class="es-icon">💬</div>Conversación eliminada</div>';
+  toast('🗑️ Chat eliminado');
+}
+
+/* ===== LOGS ===== */
+function logA(msg){ db.ref('/logs').push({msg, ts:Date.now(), by:'Admin-Panel'}); }
+
+/* ===== FIXTURE VIEW ===== */
+// (Solo lectura — la edición se hace desde la web principal)
+function renderFixtureView(){
+  const br = S.bracket||{};
+  const RKF=['r16','r8','r4','semi','final'];
+  const RNF=['16avos','8vos de final','Cuartos','Semifinal','FINAL'];
+  let h='';
+  RKF.forEach((rk,ri)=>{
+    const ms=(br[rk]||[]).filter(m=>m&&(m.t1||m.t2));
+    if(!ms.length) return;
+    h+=`<div style="margin-bottom:12px;"><div style="font-size:10px;color:var(--cyan);font-weight:700;text-transform:uppercase;letter-spacing:2px;margin-bottom:5px;">${RNF[ri]}</div>`;
+    ms.forEach(m=>{
+      const t1=m.t1?.name||'Por definir', t2=m.t2?.name||'Por definir';
+      const g1=m.goals1!=null?m.goals1:'–', g2=m.goals2!=null?m.goals2:'–';
+      const w=m.winner;
+      h+=`<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:rgba(8,20,10,0.5);border:1px solid var(--border);border-radius:8px;margin-bottom:4px;font-size:12px;">
+        <span style="flex:1;${w==='t1'?'font-weight:700;color:var(--yellow)':''}">${x(t1)}</span>
+        <span style="color:var(--muted);font-size:11px;">${g1} vs ${g2}</span>
+        <span style="flex:1;text-align:right;${w==='t2'?'font-weight:700;color:var(--yellow)':''}">${x(t2)}</span>
+        ${w?`<span class="badge badge-acc" style="flex-shrink:0;">✅ ${w==='t1'?x(t1):x(t2)}</span>`:''}
+      </div>`;
+    });
+    h+='</div>';
+  });
+  id('admin-fixture-view').innerHTML = h || '<div style="color:var(--muted);font-size:12px;">Sin fixture cargado todavía.</div>';
+}
+
+// Escuchar al tab de fixture para renderizar
+document.querySelector('[onclick="showTab(\'fixture\',this)"]').addEventListener('click', renderFixtureView);
+
+</script>
+</body>
+</html>
